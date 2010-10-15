@@ -6,14 +6,14 @@
 %==========================================================================
 
 %==========================================================================
-% gs(Hands,Table,Trick,DealingPlayer,ActualPlayer,PairPoins)
+% gs(Hands,Table,Trick,Dealingturner,Actualturner,PairPoins)
 % popisuje aktualni stav hry
 
 %Hands - obsah rukou hracu
 %Table - karty vylozene na stole pri aktualni sehravce
 %Trick - ulozene sehravky u hracu
-%DealingPlayer - hrac ktery prave rozdava
-%ActualPlayer - hrac ktery je prave na tahu
+%Dealingturner - hrac ktery prave rozdava
+%Actualturner - hrac ktery je prave na tahu
 %PairPoins - dosud ziskane body
 
 %==========================================================================
@@ -41,20 +41,20 @@ rank(k). %king
 rank(a). %ace
 
 %==========================================================================
-%  players(-X) popisuje hrace
+%  turners(-X) popisuje hrace
 %==========================================================================
-players(p1). 
-players(p2). 
-players(p3). 
-players(p4). 
+turners(p1). 
+turners(p2). 
+turners(p3). 
+turners(p4). 
 
 %==========================================================================
-% player_pairs(-X) urci pary hracu, kteri hraju spolu
+% turner_pairs(-X) urci pary hracu, kteri hraju spolu
 %==========================================================================
-player_pairs(p1,p2).
-player_pairs(p2,p1).
-player_pairs(p3,p4).
-player_pairs(p4,p3).
+turner_pairs(p1,p2).
+turner_pairs(p2,p1).
+turner_pairs(p3,p4).
+turner_pairs(p4,p3).
 
 %==========================================================================
 % split(+N,+L1,-L2) vrati prvnich N prvku ze seznamu L1 v seznamu L2
@@ -141,7 +141,7 @@ prepare_board(gs(H,T,TR,DP,AP,PP)):-
     TR=[],
     DP=p1,
     AP=p2,
-    PP=[1-pp(0),2-pp(1)].
+    PP=[1-pp(0),2-pp(0)].
         
 
 %==========================================================================
@@ -160,10 +160,12 @@ loop:-
     new_deck(D),
     reshuffle(D,DSh),
     deal_cards(DSh,H),
-    trick(GS,GS1),
-    count_points(GS1,GS2),
-    retract(gs(H,T,TR,DP,AP,PP)),
-    asserta(GS2).
+    %vyber trumf
+    tricks(gs(H,T,TR,DP,AP,PP),gs(H1,T1,TR1,DP1,AP1,PP1)),
+    count_points(TR1,PP1,PP2)),
+    get_next_turner(AP1,DP2),
+    retract(gs(_,_,_,_,_,_)),
+    asserta(gs([],[],[],AP1,DP2,PP2)),
     loop.
 
 loop:-
@@ -177,23 +179,41 @@ loop:-
     select(2-pp(X),PP,_),X>6.
 
 %==========================================================================
-%  loop herni opakovaci smycka
+%  trick odehrani jednoho triku
 %==========================================================================
-trick():-
-    
-        
-
-trick():-
-
-%==========================================================================
-%  loop herni opakovaci smycka
-%==========================================================================
-play(gs(H,T,TR,DP,AP,PP), gs(H2,T2,TR2,DP2,AP2,PP2)):-
+trick(gs(H,T,TR,_,AP,_),gs(H5,T5,TR5,_,AP5,_)):-
     writenl('Nova sehravka'),
+    turn(gs(H,T,TR,_,AP,_), gs(H1,T1,TR1,_,AP1,_)),
+    resolve_turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
+    turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
+    resolve_turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
+    turn(gs(H2,T2,TR2,_,AP2,_), gs(H3,T3,TR3,_,AP3,_)),
+    resolve_turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
+    turn(gs(H3,T3,TR3,_,AP3,_), gs(H4,T4,TR4,_,AP4,_)),
+    resolve_turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
+    trick(gs(H4,T4,TR4,_,AP4,_),gs(H5,T5,TR5,_,AP5,_)).
+
+trick(gs(H,_,_,_,_,_),_):-
+    select(1-h([]),H,_),
+    select(2-h([]),H,_),
+    select(3-h([]),H,_),
+    select(4-h([]),H,_).
+
+%==========================================================================
+%  loop herni opakovaci smycka
+%==========================================================================
+count_points(TR,PP,PP1):-
 
 
-play(gs(H,T,TR,DP,AP,PP), gs(H2,T2,TR2,DP2,AP2,PP2)):-
-    writenl('Na tahu je hrac 1'),
+resolve_turn(AP1,DP2),
+    %presunout ziskany zdrvi ke hraci
+    %ten kdo vyhral je dalsi hrajici
+    %vyvstit stul
+%==========================================================================
+%  loop herni opakovaci smycka
+%==========================================================================
+turn(gs(H,T,TR,DP,AP,PP), gs(H2,T2,TR2,DP2,AP2,PP2)):-
+    writenl('Na tahu je hrac X'),
     write_board(gs(H,T,TR,DP,AP,PP)),nl,
     bagof([gs(H1,T1,TR1,DP1,AP1,PP1),Turn],
           turn(gs(H,T,TR,DP,AP,PP),gs(H1,T1,TR1,DP1,AP1,PP1),Turn),BList),
