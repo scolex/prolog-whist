@@ -6,18 +6,18 @@
 %==========================================================================
 
 %==========================================================================
-% gs(Hands,Table,Trick,Dealingturner,Actualturner,PairPoins)
+% gs(Hands,Table,Trick,ActualPlayer,PairScore, Trump,TM)
 % popisuje aktualni stav hry
 
 %Hands - obsah rukou hracu
 %Table - karty vylozene na stole pri aktualni sehravce
 %Trick - ulozene sehravky u hracu
-%Dealingturner - hrac ktery prave rozdava
 %Actualturner - hrac ktery je prave na tahu
-%PairPoins - dosud ziskane body
+%PairScore - dosud ziskane body
+%Trump - trumf
 
 %==========================================================================
-:-dynamic gs/4.
+:-dynamic gs/6.
 
 %==========================================================================
 %  suit(-X) popisuje barvu karet
@@ -41,12 +41,12 @@ rank(k). %king
 rank(a). %ace
 
 %==========================================================================
-%  turners(-X) popisuje hrace
+%  players(-X) popisuje hrace
 %==========================================================================
-turners(p1). 
-turners(p2). 
-turners(p3). 
-turners(p4). 
+player(1-p).
+player(2-p).
+player(3-p).
+player(4-p).
 
 %==========================================================================
 % turner_pairs(-X) urci pary hracu, kteri hraju spolu
@@ -135,65 +135,54 @@ deal_card(D,H):-
       3-h(H3),
       4-h(D3)].  
 
-prepare_board(gs(H,T,TR,DP,AP,PP)):-
-    H=[],
-    T=[],
-    TR=[],
-    DP=p1,
-    AP=p2,
-    PP=[1-pp(0),2-pp(0)].
-        
-
 %==========================================================================
 %  go zahaji herni opakovaci smycku
 %==========================================================================
 go:-writenl('Vitejte ve Whist!'),
-    prepare_board(GS),
-    asserta(GS),
+    asserta(gs([],[],[],null,[1-ps(0),2-ps(0)],null)),
     loop.
 
 %==========================================================================
 %  loop herni opakovaci smycka
 %==========================================================================
 loop:-
-    gs(H,T,TR,DP,AP,PP),
+    gs(_,_,_,_,PS,_),
     new_deck(D),
     reshuffle(D,DSh),
     deal_cards(DSh,H),
-    %vyber trumf
-    tricks(gs(H,T,TR,DP,AP,PP),gs(H1,T1,TR1,DP1,AP1,PP1)),
-    count_points(TR1,PP1,PP2)),
-    get_next_turner(AP1,DP2),
-    retract(gs(_,_,_,_,_,_)),
-    asserta(gs([],[],[],AP1,DP2,PP2)),
+    dealing_player(DP),
+    trump(H,DP,TM),
+    next_player(DP,AP), %rozdavajici hrac
+    tricks(gs(H,T,TR,AP,PS,TM),gs(H1,T1,TR1,AP1,PS,TM)),
+    count_points(TR1,PS,PS1),
+    retract(gs(_,_,_,_,_,_,_)),
+    asserta(gs([],[],[],AP1,PS1,TM)),
     loop.
 
 loop:-
     writeln('Vyhral prvni par'),
-    gs(_,_,_,_,_,PP),
-    select(1-pp(X),PP,_),X>6.
+    gs(_,_,_,_,PS,_),
+    select(1-pp(X),PS,_),X>6.
 
 loop:-
     writeln('Vyhral druhy par'),
-    gs(_,_,_,_,_,PP),
-    select(2-pp(X),PP,_),X>6.
+    gs(_,_,_,_,PS,_),
+    select(2-pp(X),PS,_),X>6.
 
 %==========================================================================
-%  trick odehrani jednoho triku
+%  tricks - odehrani jednoho triku, celkem by se melo za kolo odehrat 13
 %==========================================================================
-trick(gs(H,T,TR,_,AP,_),gs(H5,T5,TR5,_,AP5,_)):-
+tricks(gs(H,T,TR,AP,PS,TM),gs(H8,T8,TR8,AP8,PS,TM)):-
     writenl('Nova sehravka'),
-    turn(gs(H,T,TR,_,AP,_), gs(H1,T1,TR1,_,AP1,_)),
-    resolve_turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
-    turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
-    resolve_turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
-    turn(gs(H2,T2,TR2,_,AP2,_), gs(H3,T3,TR3,_,AP3,_)),
-    resolve_turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
-    turn(gs(H3,T3,TR3,_,AP3,_), gs(H4,T4,TR4,_,AP4,_)),
-    resolve_turn(gs(H1,T1,TR1,_,AP1,_), gs(H2,T2,TR2,_,AP2,_)),
-    trick(gs(H4,T4,TR4,_,AP4,_),gs(H5,T5,TR5,_,AP5,_)).
+    turn(gs(H,T,TR,AP,_,TM), gs(H1,T1,TR1,AP1,_,TM)),
+    turn(gs(H1,T1,TR1,AP1,_,TM), gs(H2,T2,TR2,AP2,_,TM)),
+    turn(gs(H2,T2,TR2,AP2,_,TM), gs(H3,T3,TR3,AP3,_,TM)),
+    turn(gs(H3,T3,TR3,AP3,_,TM), gs(H4,T4,TR4,AP4,_,TM)),
+    resolve_trick(gs(H4,T4,TR4,AP4,_,TM), gs(H5,T5,TR5,AP5,_,TM)).
+    tricks(gs(H5,T5,TR5,AP5,_,TM), gs(H6,T6,TR6,AP6,_,TM)).
 
-trick(gs(H,_,_,_,_,_),_):-
+tricks(GS,GS):-
+    gs(H,_,_,_,_,_,_)=GS,
     select(1-h([]),H,_),
     select(2-h([]),H,_),
     select(3-h([]),H,_),
@@ -202,25 +191,92 @@ trick(gs(H,_,_,_,_,_),_):-
 %==========================================================================
 %  loop herni opakovaci smycka
 %==========================================================================
-count_points(TR,PP,PP1):-
+count_points(TR,PS,PSO):-
+    select(1-ps(PS1),PS,_),
+    select(2-ps(PS2),PS,_),
 
+    select(1-tr(TR1),TR,_),
+    select(2-tr(TR2),TR,_),
 
-resolve_turn(AP1,DP2),
-    %presunout ziskany zdrvi ke hraci
-    %ten kdo vyhral je dalsi hrajici
-    %vyvstit stul
+    lenght(TR1,TL1),
+    lenght(TR2,TL2),
+
+    S1 is TL1 - 6,
+    S2 is TL2 - 6,
+    
+    max(S1,0,SC1),
+    max(S2,0,SC2),
+
+    SCC1 is PS1 + SC1,
+    SCC2 is PS2 + SC2,
+
+    PSO=[1-ps(SCC1), 2-ps(SCC2)].
+
 %==========================================================================
 %  loop herni opakovaci smycka
 %==========================================================================
-turn(gs(H,T,TR,DP,AP,PP), gs(H2,T2,TR2,DP2,AP2,PP2)):-
-    writenl('Na tahu je hrac X'),
-    write_board(gs(H,T,TR,DP,AP,PP)),nl,
-    bagof([gs(H1,T1,TR1,DP1,AP1,PP1),Turn],
-          turn(gs(H,T,TR,DP,AP,PP),gs(H1,T1,TR1,DP1,AP1,PP1),Turn),BList),
-    write('Mozne tahy'),
-    split_by_pair(BList,Boards,Turns),
-    enumerate(Turns, TurnsN),
-    write(TurnsN),nl,
-    read(Nth),
-    nth2(Nth,Boards,gs(H2,T2,TR2,DP2,AP2,PP2)).
+resolve_turn(gs(H,T,TR,AP,_,TM), gs(H1,T1,TR1,AP1,_,TM)).
+    %zjistit kdo vyhral
+    %presunout ziskany zdrvi ke hraci
+    %ten kdo vyhral je dalsi hrajici
+    %vyvstit stul
 
+%==========================================================================
+%  loop herni opakovaci smycka
+%==========================================================================
+turn(gs(H,T,TR,DP,AP,PS,TM), gs(H2,T2,TR2,DP2,AP2,PS2,TM)):-
+    writenl('Na tahu je hrac X'),
+    write_board(gs(H,T,TR,DP,AP,PS,TM)),nl,
+    bagof([gs(H1,T1,TR1,DP1,AP1,PS1,TM),Rule],
+          rule(gs(H,T,TR,DP,AP,PS,TM),gs(H1,T1,TR1,DP1,AP1,PS1,TM),Turn),BList),
+    write('Mozne tahy'),
+    split_by_pair(BList,Boards,Rules),
+    enumerate(Rules,RulesN),
+    writenl(RulesN),
+    read(Nth),
+    nth2(Nth,Boards,gs(H2,T2,TR2,DP2,AP2,PS2,TM)).
+
+
+%==========================================================================
+%  dealing_player nahodne vybere rozdavajicho hrace
+%==========================================================================
+dealing_player(DP):-
+    bagof(P,player(P),Players),
+    random_elem(Players, DP, _).
+
+next_player(CP,NP):-
+    N-p=CP,
+    N1 is (N mod 4) + 1,
+    NP=N1-p.
+
+
+trump(CP,H,S):-
+    N-p=CP,
+    select(N-h([S-_|_]),H,_).
+    
+resolve_trick(gs(H,T,TR,AP,_,TM), gs(H1,T1,TR1,AP1,_,TM)):-
+    find_win_card(null,T,TRS,P,P1).
+
+
+find_win_card(M,[C1|T1],S,N,N2):-
+    C1=S-R,
+    lt_card_rank(M,R),
+    N1 is N + 1,
+    find_win_card(R,T1,S,N1,N2).
+
+find_win_card(M,[C1|T1],S,N,N2):-
+    C1=S-R,
+    \+  lt_card_rank(M,R),
+    find_win_card(M,T1,S,N1,N2).
+
+find_win_card(M,[C1|T1],S,N,N2):-
+    C1\=S-R,
+    find_win_card(M,T1,S,N,N2).
+
+find_win_card(_, [], _, N, N2):-
+    N2=N.
+
+lt_card_rank(R1,R2):-
+    L=[null,2,3,4,5,6,7,8,9,10,j,q,k,a] 
+    sel_nth1(N1,L,R1,_,_).
+    sel_nth1(N@,L,R1,_,_).
