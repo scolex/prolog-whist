@@ -154,8 +154,8 @@ loop:-
     trump(DP,H,TM),
     next_player(DP,AP), %rozdavajici hrac
     TR=[1-tr([]),2-tr([]),3-tr([]),4-tr([])],
-    tricks(gs(H,T,TR,AP,PS,TM),gs(H1,T1,TR1,AP1,PS,TM)),
-    count_points(TR1,PS,PS1),
+    tricks(gs(H,[],TR,AP,PS,TM),gs(H1,T1,TR,AP1,PS,TM)),
+    count_points(TR,PS,PS1),
     retract(gs(_,_,_,_,_,_,_)),
     asserta(gs([],[],[],AP1,PS1,TM)),
     loop.
@@ -173,14 +173,14 @@ loop:-
 %==========================================================================
 %  tricks - odehrani jednoho triku, celkem by se melo za kolo odehrat 13
 %==========================================================================
-tricks(gs(H,T,TR,AP,PS,TM),gs(H8,T8,TR8,AP8,PS,TM)):-
+tricks(gs(H,T,TR,AP,PS,TM),gs(H6,T6,TR6,AP6,PS,TM)):-
     writeln('Nova sehravka'),
-    player_turn(gs(H,T,TR,AP,_,TM), gs(H1,T1,TR1,AP1,_,TM)),
-    player_turn(gs(H1,T1,TR1,AP1,_,TM), gs(H2,T2,TR2,AP2,_,TM)),
-    player_turn(gs(H2,T2,TR2,AP2,_,TM), gs(H3,T3,TR3,AP3,_,TM)),
-    player_turn(gs(H3,T3,TR3,AP3,_,TM), gs(H4,T4,TR4,AP4,_,TM)),
-    resolve_trick(gs(H4,T4,TR4,AP4,_,TM), gs(H5,T5,TR5,AP5,_,TM)).
-    tricks(gs(H5,T5,TR5,AP5,_,TM), gs(H6,T6,TR6,AP6,_,TM)).
+    player_turn(gs(H,T,TR,AP,PS,TM), gs(H1,T1,TR,AP1,PS,TM)),
+    player_turn(gs(H1,T1,TR,AP1,PS,TM), gs(H2,T2,TR,AP2,PS,TM)),
+    player_turn(gs(H2,T2,TR,AP2,PS,TM), gs(H3,T3,TR,AP3,PS,TM)),
+    player_turn(gs(H3,T3,TR,AP3,PS,TM), gs(H4,T4,TR,AP4,PS,TM)),
+    resolve_trick(gs(H4,T4,TR,AP4,PS,TM), gs(H5,T5,TR5,AP5,PS,TM)).
+    tricks(gs(H5,T5,TR5,AP5,PS,TM), gs(H6,T6,TR6,AP6,PS,TM)).
 
 tricks(GS,GS):-
     gs(H,_,_,_,_,_,_)=GS,
@@ -195,7 +195,6 @@ tricks(GS,GS):-
 count_points(TR,PS,PSO):-
     select(1-ps(PS1),PS,_),
     select(2-ps(PS2),PS,_),
-
 
     select(1-tr(TR1),TR,_),
     select(2-tr(TR2),TR,_),
@@ -221,52 +220,69 @@ count_points(TR,PS,PSO):-
 %==========================================================================
 %  loop herni opakovaci smycka
 %==========================================================================
-player_turn(gs(H,T,TR,DP,AP,PS,TM), gs(H2,T2,TR2,DP2,AP2,PS2,TM)):-
-    write('Na tahu je hrac '),
+player_turn(gs(H,T,TR,AP,PS,TM), gs(H2,T2,TR2,AP2,PS2,TM)):-
+    nl, write('Na tahu je hrac '),
     writeln(AP),
-    write_board(gs(H,T,TR,DP,AP,PS,TM)),nl,
-    bagof([gs(H1,T1,TR1,DP1,AP1,PS1,TM),Turn],
-          turn(gs(H,T,TR,DP,AP,PS,TM),
-               gs(H1,T1,TR1,DP1,AP1,PS1,TM),Turn),BList),
-    write('Mozne tahy'),
+    write_board(gs(H,T,TR,AP,PS,TM)),
+    bagof([gs(H1,T1,TR1,AP1,PS1,TM),Des],
+          turn(gs(H,T,TR,AP,PS,TM),
+               gs(H1,T1,TR1,AP1,PS1,TM),Des),BList),
+    writeln('Mozne tahy'),
     split_by_pair(BList,Boards,Rules),
     enumerate(Rules,RulesN),
     writeln(RulesN),
     read(Nth),
-    nth2(Nth,Boards,gs(H2,T2,TR2,DP2,AP2,PS2,TM)).
+    nth1(Nth,Boards,gs(H2,T2,TR2,AP2,PS2,TM)).
+
+write_board(gs(H,T,TR,AP,PS,TM)):-
+    N-P=AP,
+    select(N-h(PH),H,_),
+    select(N-tr(TRH),TR,_),
+    writeln('================================================================='),
+    writeln('Table:'),writeln(T),
+    writeln('================================================================='),
+    writeln('Hand:'),writeln(PH),
+    writeln('================================================================='),
+    writeln('Skore:'),writeln(PS),
+    writeln('================================================================='),
+    writeln('Trumf:'),writeln(TM),
+    writeln('================================================================='),
+    writeln('Triky:'),writeln(TRH),
+    writeln('=================================================================').
 
 
 %==========================================================================
 %  dealing_player nahodne vybere rozdavajicho hrace
 %==========================================================================
-turn(gs(H,T,_,DP,AP,_,TM), gs(H1,T1,_,DP1,AP1,_,TM), Des):-
+turn(gs(H,T,TR,AP,PS,TM), gs(H1,T1,TR,AP1,PS,TM), Des):-
     T=[],
-    N-P=AP,
+    N-p=AP,
     select(N-h(PH),H,Hs),
     select(S-R,PH,PHs),
-    next_player(AP,AP2),
+    next_player(AP,AP1),
     T1=[S-R],
-    H1=[N-h([PHs])|Hs],
+    H1=[N-h(PHs)|Hs],
     concat_atom(['(',S,'-',R,')'],Des).
 
-turn(gs(H,[S-_|Ts],_,DP,AP,_,TM), gs(H1,T1,_,DP1,AP1,_,TM)):-
-    N-P=AP,
+turn(gs(H,T,TR,AP,PS,TM), gs(H1,T1,TR,AP1,PS,TM), Des):-
+    T=[S-_|Ts],
+    N-p=AP,
     select(N-h(PH),H,Hs),
     select(S-R,PH,PHs),
-    next_player(AP,AP2),
-    T1=[S-R|Ts],
-    H1=[N-h([PHs])|Hs],
+    next_player(AP,AP1),
+    append(T,[S-R],T1),
+    H1=[N-h(PHs)|Hs],
     concat_atom(['(',S,'-',R,')'],Des).
 
-turn(gs(H,T,_,DP,AP,_,TM), gs(H1,T1,_,DP1,AP1,_,TM)):-
-    [C|_]=T,
-    N-P=AP,
+turn(gs(H,T,TR,AP,PS,TM), gs(H1,T1,TR,AP1,PS,TM), Des):-
+    [C|Ts]=T,
+    N-p=AP,
     select(N-h(PH),H,Hs),
     \+ member(C,PH),
     select(S-R,PH,PHs),
-    next_player(AP,AP2),
-    T1=[S-R|Ts],
-    H1=[N-h([PHs])|Hs],
+    next_player(AP,AP1),
+    append(T,[S-R],T1),
+    H1=[N-h(PHs)|Hs],
     concat_atom(['(',S,'-',R,')'],Des).
 
 dealing_player(DP):-
@@ -282,7 +298,7 @@ trump(CP,H,S):-
     N-p=CP,
     select(N-h([S-_|_]),H,_).
     
-resolve_trick(gs(_,T,TR,AP,_,TM), gs(_,T1,TR1,AP1,_,TM)):-
+resolve_trick(gs(H,T,TR,AP,PS,TM), gs(H,T1,TR1,AP1,PS,TM)):-
     N-p=AP,
     find_win_card(T,TM,N1),
     N2 is ((N + N1 - 1) mod 4)+ 1,
